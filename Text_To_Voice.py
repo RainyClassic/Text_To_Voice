@@ -1,4 +1,3 @@
-
 import os
 import requests
 import winsound
@@ -14,23 +13,44 @@ import soundfile as sf
 from qwen_tts import Qwen3TTSModel
 
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "Chatbot"   
+OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_MODEL = "Chatbot"
 
 TTS_MODEL = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
 OUTPUT_WAV = r"C:\Users\Chilong\Desktop\NewApp\Text To Voice\output.wav"
 
 
-def ask_ollama(prompt):
-    print("Asking Ollama...", flush=True)
+messages = [
+    {
+        "role": "system",
+        "content": (
+            "You are Serena, a friendly NPC in a game. "
+            "Reply only as Serena. "
+            "Keep replies short, 1 or 2 complete sentences. "
+            "Do not write long paragraphs. "
+            "Do not mention AI. "
+            "Do not explain what you are doing."
+        )
+    }
+]
+
+
+def ask_ollama(player_text):
+    print("Asking Ollama chat...", flush=True)
+
+    messages.append({
+        "role": "user",
+        "content": player_text
+    })
 
     payload = {
         "model": OLLAMA_MODEL,
-        "prompt": prompt,
+        "messages": messages,
         "stream": False,
         "think": False,
         "options": {
-            "num_predict": 120
+            "num_predict": 180,
+            "temperature": 0.7
         }
     }
 
@@ -38,9 +58,17 @@ def ask_ollama(prompt):
     response.raise_for_status()
 
     data = response.json()
-    reply = data.get("response", "").strip()
 
-    return reply
+    print("Ollama done_reason:", data.get("done_reason"), flush=True)
+
+    npc_reply = data["message"]["content"].strip()
+
+    messages.append({
+        "role": "assistant",
+        "content": npc_reply
+    })
+
+    return npc_reply
 
 
 print("Loading Qwen TTS model...", flush=True)
@@ -53,6 +81,7 @@ model = Qwen3TTSModel.from_pretrained(
 
 print("TTS model loaded.", flush=True)
 
+
 while True:
     user_text = input("\nYou: ")
 
@@ -63,6 +92,7 @@ while True:
     npc_reply = ask_ollama(user_text)
 
     print("\nNPC:", npc_reply, flush=True)
+    print("NPC reply length:", len(npc_reply), flush=True)
 
     print("Generating voice...", flush=True)
 
